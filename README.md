@@ -1,116 +1,81 @@
-# CoolCode browser tool template
+# Magnetic North
 
-A starting point for independent tools at `coolcode.ca/<repo>/`: a working local-text
-example, responsive UI, Python standard-library build, Node tests, PR checks and Pages
-publication. No npm install is needed.
+[Open Magnetic North](https://coolcode.ca/magneticnorth/) · a CoolCode browser application.
 
-## Using the example
+Calculate magnetic declination, inclination and field strength at any valid coordinate using the standard NOAA/BGS **WMM2025** model. Convert between true and magnetic bearings, compare saved starting places, and inspect the model’s projected change from 2025 through 2029. All calculations run locally; no API key, account, geolocation permission or backend is required.
 
 <!-- coolcode:guide -->
-The first occurrence of each trimmed line keeps its place. Compare the output with the original text before copying the result.
+Enter latitude, longitude, WGS84 ellipsoid height and a date in **2025–2029**, or start with Langley or Halifax. East declination is positive: **true bearing = magnetic bearing + declination**. The compass drawing is a schematic, not a reading from your device. The chart shows one model’s predictions at a fixed place, not observed magnetic history. Save receipt JSON or CSV to retain your result; inputs are not saved automatically. Add places in **web/config.json** and push to publish them.
 <!-- /coolcode:guide -->
 
-For a real tool, replace this paragraph with one or two plain-text sentences
-about an example, a limit or how to interpret the results. Keep the source,
-coverage, refresh behaviour and a worked example in this README as appropriate.
-When updating a tool, revise any details its behaviour has changed and keep the
-homepage's shorter data-source sentence in `tool.json` accurate.
-The hub imports the marked note into the catalogue README.
+## How to use it
 
-## One-time template setup
+1. Choose coordinates. Latitude is positive north; longitude is positive east and negative west. Presets are conveniences, not the only supported inputs.
+2. Enter metres above the **WGS84 ellipsoid**. Zero is a mathematical reference, not your elevation above sea level or ground. This app performs no geoid correction.
+3. Choose a calendar date from 1 January 2025 through 31 December 2029. The calculation uses 00:00 UTC on that day; the initial date uses the visitor’s calendar date. Dates beyond the bundled model’s validity are rejected, not silently extrapolated.
+4. Calculate. Positive declination means magnetic north lies east of true north. Positive inclination points down into Earth. Field strengths are in nanoteslas (nT).
+5. Enter a true or magnetic bearing. For example, with a hypothetical +15° declination, 90° true becomes 75° magnetic; 90° magnetic becomes 105° true. Bearings wrap to 0–360°.
+6. Save a JSON receipt including coordinates, date, model provenance and outputs, or export a CSV of the calculated values.
 
-Enable **Settings → General → Template repository** here. This repository does not
-need Pages enabled: its workflow builds/tests but intentionally skips deployment.
-New copies also skip deployment until `scripts/init.py` sets the tool ID to match
-their repository name. This lets you create the repo before configuring Pages.
+The interface accepts −1,000 to 850,000 m above the ellipsoid. These application input bounds do **not** imply equal model accuracy throughout that range. NOAA’s practical altitude/depth limits depend on geomagnetic conditions, local ground and the requested component.
 
-## Start a new tool
+## What the evidence means
 
-1. Select **Use this template → Create a new repository**, choose owner `jsdyer`,
-   a unique lowercase name such as `my-tool`, and public visibility.
-2. Clone the new repository. Use Python 3.12+ and Node 24+.
-3. Set the identity, using a slug that matches the repository name:
+WMM2025 models Earth’s large-scale internal magnetic field. It does not represent local metal, all crustal magnetic anomalies, electrical equipment or short-term storm effects. It is not a phone-compass sensor or a guarantee of safe navigation.
 
-```sh
-python3 scripts/init.py my-tool --title "My Tool" --description "Describe what this tool does."
+Horizontal intensity below 2,000 nT is NOAA’s compass **blackout zone**; 2,000–6,000 nT is its **caution zone**. Both are flagged. Bearing conversion is withheld in blackout zones and exactly at geographic poles, where true north is not a unique local direction. Calculated vector components remain inspectable.
+
+The declination uncertainty uses NOAA’s WMM2025 surface estimate, `sqrt(0.26² + (5417/H)²)` degrees, where H is in nT. It represents a one-standard-deviation model estimate at Earth’s surface, not a confidence bound for every real compass reading or an estimate valid at all altitudes.
+
+The time chart recalculates the same WMM2025 model at the same coordinate and height. It is a prediction across the model period, not a comparison of observations. It unwraps angles around ±180° solely to draw a continuous line.
+
+## Expand or customize
+
+Edit [`web/config.json`](web/config.json). Every configured place appears as a shortcut and a comparison-table row; no fixed list length is embedded in the UI. For example, append:
+
+```json
+{
+  "id": "toronto",
+  "label": "Toronto, ON",
+  "latitude": 43.6532,
+  "longitude": -79.3832
+}
 ```
 
-Review the category, tags and icon in `tool.json`. `access: "browser"` tells the main
-catalogue that the tool works immediately without installation. `--owner` supports a different
-GitHub owner, but only projects owned by `jsdyer` inherit the CoolCode domain.
+- `presets`: up to 100 unique IDs, labels, numeric latitude and longitude. All valid visitor coordinates remain accepted without editing this list.
+- `defaultLocation`: the preset ID used at startup.
+- `defaultAltitudeMetres`: initial ellipsoid height, normally `0`.
+- `defaultBearing`: initial bearing, normally `90`.
+- `trendSamples`: number of model dates in the chart, constrained to 2–101 for responsive local rendering.
 
-4. Replace the example in `web/` and its tests. Update the privacy explanation,
-   source attribution and README to describe the real tool.
-5. Test and preview:
+Push the edit to `main`. **Magnetic North · Check and publish** tests, builds offline and deploys it. No source refresh is needed for a preset change, and no recurring collector is configured: coefficients are a versioned model, not a daily feed.
+
+To update the model after 2029, obtain the new official coefficient file and test vectors, then deliberately update the epoch/name validation, date limits, trend interval, provenance and explanatory copy together. The app must continue to reject dates outside the installed model period. Do not replace coefficients alone and leave WMM2025 labels in place.
+
+## Sources, provenance and reuse
+
+- [NOAA NCEI World Magnetic Model](https://www.ncei.noaa.gov/products/world-magnetic-model).
+- [Official WMM2025 coefficient package and 100 test points](https://www.ncei.noaa.gov/sites/default/files/2024-12/WMM2025COF.zip).
+- [NOAA accuracy, limitations, blackout zones and error model](https://www.ncei.noaa.gov/products/world-magnetic-model/accuracy-limitations-error-model).
+- [WMM2025 dataset DOI](https://doi.org/10.25921/aqfd-sd83): NOAA NCEI Geomagnetic Modeling Team; British Geological Survey, 2024.
+- Numerical synthesis is a JavaScript adaptation of NOAA’s [Legacy C `geomag.c`](https://www.ngdc.noaa.gov/geomag/WMM/data/WMM2020/WMM2020LegacyC.zip), with the **2025 coefficients**, not the 2020 model. WGS84 constants, Schmidt normalization, spherical-harmonic recurrence, coordinate rotations and geographic-pole handling are retained; per-call arrays replace mutable calculation caching.
+
+The original coefficient file is preserved at `web/data/WMM.COF`. `web/data/model-info.json` records its retrieval time, source URL and SHA-256; the retrieval time is not the epoch or a field observation date. Original test vectors are preserved at `tests/fixtures/WMM2025_TestValues.txt`.
+
+**Public-domain notice:** this tool incorporates numerical code and coefficients distributed by NOAA as U.S. Government material. That material is not subject to copyright protection. The World Magnetic Model is jointly developed with the British Geological Survey. No NOAA/NGA/BGS endorsement is implied.
+
+## Privacy
+
+Coordinates, heights, dates and bearings stay in this tab. Local files containing the model and configuration are loaded from CoolCode. Nothing is sent to a magnetic-field API, no geolocation is requested and inputs are not automatically persisted. The standard CoolCode visit counter receives the tool ID, not these inputs. Clicking an official source link opens that provider’s site. Exports are initiated by the visitor.
+
+## Development and checks
 
 ```sh
 node --test tests/*.test.mjs
 python3 -m unittest discover -s tests -v
 python3 scripts/build.py
-python3 -m http.server 8000 --directory dist
 ```
 
-Open `http://localhost:8000/`. The example trims lines, skips blanks and removes exact
-duplicates, preserving first-seen order and capitalization. It processes the text in tab memory. Update that explanation if your app behaves differently.
+The build requires only Python’s standard library and copies relative assets to `dist/`. Node is used for tests. Browser CI uses test-only Playwright to exercise coordinates beyond the presets, date bounds, raw components, bearing conversion, downloads and mobile layout under a project subpath.
 
-CI also tests the browser flow and mobile layout at a project subpath. Replace the
-sample assertions in `tests/browser_smoke.py` when implementing your own UI. To run
-that check locally (optional for ordinary preview):
-
-```sh
-python3 -m venv .venv
-. .venv/bin/activate
-python3 -m pip install -r tests/browser-requirements.txt
-python3 -m playwright install --with-deps chromium
-python3 tests/browser_smoke.py
-```
-
-Playwright is a test-only dependency; the app and its static build do not use it.
-
-## Publish and register
-
-When the actual tool is ready, in the **new tool repository** set **Settings → Pages → Build and deployment →
-Source → GitHub Actions**. Push to `main`, or manually run **Browser tool · Check and
-publish** after enabling Pages. If the initial deployment ran before Pages was enabled,
-enable it and rerun. PRs only check/build and provide a downloadable preview artifact.
-
-Keep `{{VISIT_COUNTER}}` in the page head and `{{ISSUE_LINK}}` in the footer when replacing the starter UI. The build enables these for initialized CoolCode repositories. The shared counter records aggregate opens on coolcode.ca by public tool ID. Toolbox inputs and URL parameters are excluded. The issue link opens a reporting form with the tool already selected.
-
-Keep app-owned asset paths and module imports relative. Check `https://coolcode.ca/my-tool/`.
-Do not add a CNAME or set `coolcode.ca` as this project's custom domain; the account
-site supplies it. Only successful `main` builds deploy.
-
-After verifying the app, copy the reviewed object from `tool.json` into `data/tools.json`
-in [the main site](https://github.com/jsdyer/jsdyer.github.io). Each tool still builds
-independently. Update the hub record when listing metadata changes; the hub is the
-authority for discovery. Ordinary app updates touch only this repository.
-
-The main site separates **Use in your browser** from **Install yourself**. An app
-that asks for a file is still a browser tool. Standalone Linux packages should start
-in their own repositories with their own build/release workflow, rather than copying
-this browser-only scaffold. Their hub record uses `access: "install"`, links to an
-installation guide, and includes `requirements`.
-
-## Files
-
-| Path | Purpose |
-| --- | --- |
-| `tool.json` | Page metadata and a ready-to-copy catalogue record |
-| `web/` | HTML, responsive CSS, DOM interactions and separate model logic |
-| `scripts/build.py` | Escape metadata and build `web/` into `dist/` |
-| `scripts/init.py` | Set a new project's identity |
-| `tests/` | Application and builder tests |
-| `.github/workflows/pages.yml` | Check PRs and publish successful main builds |
-| `AGENTS.md` | Instructions for future coding work |
-
-Namespace optional storage as `coolcode:<tool-id>:<key>`; CoolCode paths share a
-browser origin. Don't save pasted text/uploads by default. Document external APIs
-and send only the information needed for the selected action. Never embed secrets.
-
-Scheduled refresh is opt-in. Validate source data before deploying, display its date,
-and preserve the last good deployment on failure. Public-repository schedules can
-stop after 60 days without repository activity.
-
-Templates don't propagate future edits automatically. Adopt fixes explicitly and
-consider a versioned reusable workflow once several tools confirm the shared process.
-Choose and add the intended software license before distributing a new project.
+Numerical tests cover all **100 official WMM2025 test points**. Angular tolerances are 0.0051° because the published angular columns are rounded to 0.01°. Component tolerances are 0.002 nT; the JavaScript port’s observed maximum difference is below 0.001 nT. Tests also cover leap years, model expiry, poles, coefficient completeness, bearing signs and wrapping, and adding a fifth preset location.

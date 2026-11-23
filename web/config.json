@@ -1,0 +1,32 @@
+{
+  "defaultLocation": "langley",
+  "defaultAltitudeMetres": 0,
+  "defaultBearing": 90,
+  "presets": [
+    {
+      "id": "langley",
+      "label": "Langley, BC",
+      "latitude": 49.1044,
+      "longitude": -122.6608
+    },
+    {
+      "id": "halifax",
+      "label": "Halifax, NS",
+      "latitude": 44.6488,
+      "longitude": -63.5752
+    },
+    {
+      "id": "vancouver",
+      "label": "Vancouver, BC",
+      "latitude": 49.2827,
+      "longitude": -123.1207
+    },
+    {
+      "id": "whitehorse",
+      "label": "Whitehorse, YT",
+      "latitude": 60.7212,
+      "longitude": -135.0568
+    }
+  ],
+  "trendSamples": 21
+}

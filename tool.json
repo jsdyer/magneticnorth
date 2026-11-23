@@ -1,16 +1,23 @@
 {
-  "id": "coolcode-tool-template",
-  "title": "CoolCode Tool Starter",
-  "description": "A browser-only example that trims lines and removes exact duplicates.",
-  "category": "security",
-  "tags": ["text", "lines", "duplicates"],
-  "icon": "scan-search",
-  "url": "/coolcode-tool-template/",
-  "source": "https://github.com/jsdyer/coolcode-tool-template",
+  "id": "magneticnorth",
+  "title": "Magnetic North",
+  "description": "Calculate magnetic declination and convert bearings using the World Magnetic Model.",
+  "category": "places",
+  "tags": [
+    "magnetic declination",
+    "compass",
+    "bearings",
+    "WMM",
+    "geodesy",
+    "Canada"
+  ],
+  "icon": "map",
+  "url": "/magneticnorth/",
+  "source": "https://github.com/jsdyer/magneticnorth",
   "hosting": "project",
   "access": "browser",
   "data_info": {
     "mode": "local",
-    "detail": "The browser reads the text you paste and compares its lines."
+    "detail": "NOAA/BGS WMM2025 coefficients calculate the magnetic field locally for dates in 2025\u20132029."
   }
 }

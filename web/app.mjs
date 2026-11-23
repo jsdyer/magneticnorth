@@ -1,37 +1,43 @@
-import { cleanLines } from './model.mjs';
-const input = document.querySelector('#input');
-const output = document.querySelector('#output');
-const status = document.querySelector('#status');
-const copy = document.querySelector('#copy');
-function update() {
-  const result = cleanLines(input.value);
-  output.value = result.text;
-  status.textContent = `${result.count} unique ${result.count === 1 ? 'line' : 'lines'}; ${result.removed} ${result.removed === 1 ? 'duplicate' : 'duplicates'} removed.`;
-  copy.disabled = result.count === 0;
+import {parseCoefficients,calculate,convertBearing,trend,receipt,resultCSV} from './model.mjs';
+const $=id=>document.getElementById(id),el=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
+const NS='http://www.w3.org/2000/svg';
+function svg(tag,attrs,text){const e=document.createElementNS(NS,tag);for(const [k,v] of Object.entries(attrs||{}))e.setAttribute(k,String(v));if(text!==undefined)e.textContent=text;return e;}
+const number=(value,digits=0)=>value.toLocaleString('en-CA',{minimumFractionDigits:digits,maximumFractionDigits:digits});
+const degrees=value=>`${number(Math.abs(value),2)}° ${value<0?'W':'E'}`;
+let model,config,provenance,result;
+function readInput(){return {latitude:$('latitude').value===''?NaN:Number($('latitude').value),longitude:$('longitude').value===''?NaN:Number($('longitude').value),altitudeMetres:$('altitude').value===''?NaN:Number($('altitude').value),date:$('date').value};}
+function save(value,name,type='application/json'){const a=el('a');a.href=URL.createObjectURL(new Blob([value],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);}
+function drawCompass(r){const root=$('compass');root.replaceChildren(svg('title',{id:'compass-title'},`Magnetic north is ${degrees(r.declination)} from true north`));const cx=160,cy=150,radius=102;
+ root.append(svg('circle',{cx,cy,r:radius,fill:'none',stroke:'#587a86','stroke-width':1}),svg('circle',{cx,cy,r:radius-17,fill:'none',stroke:'#3d5e69','stroke-dasharray':'2 5'}));
+ for(let i=0;i<36;i++){const angle=i*10*Math.PI/180,inner=radius-(i%9===0?12:5);root.append(svg('line',{x1:cx+Math.sin(angle)*inner,y1:cy-Math.cos(angle)*inner,x2:cx+Math.sin(angle)*radius,y2:cy-Math.cos(angle)*radius,stroke:'#8fadb7','stroke-width':i%9===0?2:1}));}
+ root.append(svg('line',{x1:cx,y1:cy+72,x2:cx,y2:cy-95,stroke:'#c4d6db','stroke-width':2,'stroke-dasharray':'4 4'}),svg('text',{x:cx,y:28,fill:'#e9f3f5','font-size':12,'text-anchor':'middle'},'TRUE N'));
+ const angle=r.declination*Math.PI/180,x=cx+Math.sin(angle)*83,y=cy-Math.cos(angle)*83;
+ root.append(svg('line',{x1:cx-Math.sin(angle)*65,y1:cy+Math.cos(angle)*65,x2:x,y2:y,stroke:'#ffb29b','stroke-width':4}),svg('path',{d:`M ${x-7*Math.cos(angle)+12*Math.sin(angle)} ${y-7*Math.sin(angle)-12*Math.cos(angle)} L ${x} ${y} L ${x+7*Math.cos(angle)+12*Math.sin(angle)} ${y+7*Math.sin(angle)-12*Math.cos(angle)}`,fill:'none',stroke:'#ffb29b','stroke-width':3,transform:`rotate(180 ${x} ${y})`}),svg('circle',{cx,cy,r:6,fill:'#f5f8f8'}));
+ root.append(svg('text',{x:cx,y:275,fill:'#ffb29b','font-size':12,'text-anchor':'middle'},`MAGNETIC N · ${degrees(r.declination)}`));
 }
-input.addEventListener('input', update);
-document.querySelector('#sample').addEventListener('click', () => {
-  input.value = '  Halifax\nLangley\nHalifax\n\nVancouver  ';
-  update();
-});
-document.querySelector('#clear').addEventListener('click', () => {
-  input.value = '';
-  update();
-  input.focus();
-});
-if (navigator.clipboard && window.isSecureContext) {
-  copy.hidden = false;
-  copy.disabled = true;
-  copy.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(output.value);
-      status.textContent = 'Result copied.';
-    } catch {
-      output.focus();
-      output.select();
-      status.textContent = 'Copy was unavailable. The result is selected so you can copy it manually.';
-    }
-  });
+function drawTrend(input){const rows=trend(model,input,config.trendSamples);let values=rows.map(r=>r.declination);for(let i=1;i<values.length;i++){while(values[i]-values[i-1]>180)values[i]-=360;while(values[i]-values[i-1]<-180)values[i]+=360;}
+ const root=$('trend');root.replaceChildren(svg('title',{id:'trend-title'},'Modelled declination at the same place from 2025 through 2029'));const low=Math.min(...values),high=Math.max(...values),pad=Math.max((high-low)*.2,.1),lo=low-pad,hi=high+pad;
+ const x=i=>65+i/(rows.length-1)*665,y=v=>207-(v-lo)/(hi-lo)*175;
+ for(let i=0;i<4;i++){const value=lo+(hi-lo)*i/3,py=y(value);root.append(svg('line',{x1:65,y1:py,x2:730,y2:py,stroke:'#cbd7db'}),svg('text',{x:54,y:py+4,'text-anchor':'end',fill:'#4f6570','font-size':13},`${number(value,1)}°`));}
+ for(let year=2025;year<=2029;year++){const ratio=(Date.UTC(year,0,1)-Date.UTC(2025,0,1))/(Date.UTC(2029,11,31)-Date.UTC(2025,0,1));root.append(svg('text',{x:65+ratio*665,y:237,'text-anchor':'middle',fill:'#4f6570','font-size':13},String(year)));}
+ root.append(svg('polyline',{points:values.map((v,i)=>`${x(i)},${y(v)}`).join(' '),fill:'none',stroke:'#bb4c35','stroke-width':3}));
+ const delta=values.at(-1)-values[0];$('trend-change').textContent=`${number(Math.abs(delta),2)}° ${delta>=0?'eastward':'westward'} change over this model’s period`;
 }
-// Namespace future preference storage as coolcode:<tool-id>:<key>.
-// Do not persist pasted text or uploads by default.
+function updateBearing(){if(!result)return;const out=$('bearing-result'),explanation=$('bearing-explanation');
+ if(result.zone==='blackout'||result.geographicPole){out.textContent='No reliable conversion';explanation.textContent='The field or geographic pole makes this compass reference unsuitable.';return;}
+ try{const from=$('bearing-from').value,bearing=$('bearing').value===''?NaN:Number($('bearing').value),converted=convertBearing(bearing,result.declination,from);out.textContent=`${number(converted,2)}° ${from==='true'?'magnetic':'true'}`;explanation.textContent=`${number(bearing,2)}° ${from} ${from==='true'?'−':'+'} (${number(result.declination,2)}° declination), wrapped to 0–360°.`;}catch(e){out.textContent=e.message;explanation.textContent='';}}
+function updateComparison(input){$('place-comparison').replaceChildren();for(const place of config.presets){const r=calculate(model,{...input,latitude:place.latitude,longitude:place.longitude});const row=el('tr');for(const value of [place.label,degrees(r.declination),`${number(r.inclination,2)}°`,r.geographicPole?'Geographic pole':r.zone==='normal'?'Outside caution zones':r.zone==='blackout'?'Blackout':'Caution'])row.append(el('td',value));$('place-comparison').append(row);}}
+function show(input){try{const next=calculate(model,input);result=next;$('result-content').hidden=false;$('status').textContent='Calculated locally. No coordinates were sent to a provider.';
+ const known=config.presets.find(p=>p.latitude===next.latitude&&p.longitude===next.longitude);$('result-place').textContent=known?known.label:`${number(next.latitude,4)}°, ${number(next.longitude,4)}°`;$('result-date').textContent=new Intl.DateTimeFormat('en-CA',{year:'numeric',month:'long',day:'numeric',timeZone:'UTC'}).format(new Date(next.date+'T00:00:00Z'));
+ $('declination').textContent=degrees(next.declination);$('direction-description').textContent=`Modelled magnetic north points ${number(Math.abs(next.declination),2)}° ${next.declination<0?'west':'east'} of true north.`;$('uncertainty').textContent=`Surface model uncertainty: ±${number(next.declinationUncertainty,2)}° (1σ)`;
+ $('inclination').textContent=`${number(next.inclination,2)}°`;$('horizontal').textContent=`${number(next.h)} nT`;$('total').textContent=`${number(next.f)} nT`;
+ const warnings=[];if(next.geographicPole)warnings.push('At a geographic pole, true north is not a unique local direction; the numerical components depend on the chosen longitude.');if(next.zone==='blackout')warnings.push('NOAA blackout zone: horizontal strength is below 2,000 nT. Magnetic declination is unreliable for compass navigation.');else if(next.zone==='caution')warnings.push('NOAA caution zone: horizontal strength is below 6,000 nT. Compass directions may be unreliable.');if(next.altitudeMetres<0)warnings.push('Below-ellipsoid heights do not establish that the location is above ground or within NOAA’s practical depth limits.');if(next.altitudeMetres>0)warnings.push('The uncertainty estimate is for Earth’s surface; accuracy at altitude also depends on geomagnetic activity.');$('warning').hidden=!warnings.length;$('warning').textContent=warnings.join(' ');
+ drawCompass(next);drawTrend(input);updateBearing();$('components').replaceChildren();for(const [symbol,direction,value] of [['X','North',next.x],['Y','East',next.y],['Z','Down into Earth',next.z],['H','Horizontal magnitude',next.h],['F','Total magnitude',next.f]]){const row=el('tr');row.append(el('td',symbol),el('td',direction),el('td',`${number(value,1)} nT`));$('components').append(row);}updateComparison(input);
+ }catch(e){$('status').textContent=e.message+(result?' Previous results are unchanged.':'');}}
+$('location-form').addEventListener('submit',e=>{e.preventDefault();if(model)show(readInput());});for(const id of ['bearing','bearing-from'])$(id).addEventListener('input',updateBearing);
+$('save').addEventListener('click',()=>{if(result)save(JSON.stringify(receipt(result,provenance),null,2),`magnetic-north-${result.date}.json`);});$('csv').addEventListener('click',()=>{if(result)save(resultCSV(result),`magnetic-north-${result.date}.csv`,'text/csv;charset=utf-8');});
+async function fetchLocal(path){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);try{const r=await fetch(path,{signal:controller.signal});if(!r.ok)throw Error(`Local model file returned HTTP ${r.status}.`);return await r.text();}finally{clearTimeout(timer);}}
+try{const [cof,cfg,info]=await Promise.all([fetchLocal('./data/WMM.COF'),fetchLocal('./config.json'),fetchLocal('./data/model-info.json')]);config=JSON.parse(cfg);provenance=JSON.parse(info);const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(cof))),b=>b.toString(16).padStart(2,'0')).join('');if(hash!==provenance.sha256)throw Error('The coefficient file does not match its provenance. Reload after publication completes.');model=parseCoefficients(cof);if(!Array.isArray(config.presets)||config.presets.length===0||config.presets.length>100||!config.presets.every(p=>typeof p.id==='string'&&typeof p.label==='string'&&Number.isFinite(p.latitude)&&Math.abs(p.latitude)<=90&&Number.isFinite(p.longitude)&&Math.abs(p.longitude)<=180))throw Error('The configured location list is invalid.');if(new Set(config.presets.map(p=>p.id)).size!==config.presets.length)throw Error('Location IDs must be unique.');const place=config.presets.find(p=>p.id===config.defaultLocation)||config.presets[0];$('latitude').value=place.latitude;$('longitude').value=place.longitude;$('altitude').value=config.defaultAltitudeMetres??0;$('bearing').value=config.defaultBearing??90;
+ const today=new Date();$('date').value=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+ for(const p of config.presets){const b=el('button',p.label);b.type='button';b.addEventListener('click',()=>{$('latitude').value=p.latitude;$('longitude').value=p.longitude;show(readInput());});$('presets').append(b);}$('calculate').disabled=false;show(readInput());
+}catch(e){$('status').textContent=`The model could not load: ${e.name==='AbortError'?'the download timed out. Reload to try again.':e.message}`;}

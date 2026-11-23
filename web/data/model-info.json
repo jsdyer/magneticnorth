@@ -1,0 +1,13 @@
+{
+  "name": "WMM2025",
+  "epoch": 2025,
+  "validFrom": "2025-01-01",
+  "validThrough": "2029-12-31",
+  "degree": 12,
+  "coefficientSource": "https://www.ncei.noaa.gov/sites/default/files/2024-12/WMM2025COF.zip",
+  "modelSource": "https://www.ncei.noaa.gov/products/world-magnetic-model",
+  "retrievedAt": "2026-11-23T11:31:44.604643Z",
+  "sha256": "dfa8597825af4e0b87ff4198a5b4fb661b3c49f4cd090cd0164e0259b075582f",
+  "licence": "NOAA public-domain US Government material; model jointly developed with BGS",
+  "algorithmSource": "https://www.ngdc.noaa.gov/geomag/WMM/data/WMM2020/WMM2020LegacyC.zip"
+}
